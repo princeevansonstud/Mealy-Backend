@@ -24,7 +24,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             "email",
             "password",
             "password_confirm",
-            "role",
         ]
 
     def validate_email(self, value):
@@ -36,16 +35,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             )
 
         return email
-
-    def validate_role(self, value):
-        allowed_roles = ["customer", "caterer"]
-
-        if value not in allowed_roles:
-            raise serializers.ValidationError(
-                "Role must be either customer or caterer."
-            )
-
-        return value
 
     def validate(self, attrs):
         password = attrs.get("password")
@@ -75,6 +64,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         user = User.objects.create_user(
             password=password,
+            role="customer",
             **validated_data
         )
 

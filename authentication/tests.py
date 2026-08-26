@@ -21,7 +21,6 @@ class AuthenticationTests(APITestCase):
             "email": "customer@example.com",
             "password": "password@123",
             "password_confirm": "password@123",
-            "role": "customer",
         }
 
     def create_user(self):
@@ -75,6 +74,31 @@ class AuthenticationTests(APITestCase):
             "customer",
         )
 
+        self.assertEqual(
+            User.objects.get(email="customer@example.com").role,
+            "customer",
+        )
+
+    def test_registration_cannot_create_a_caterer(self):
+        data = self.user_data.copy()
+        data["role"] = "caterer"
+
+        response = self.client.post(
+            self.register_url,
+            data,
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        self.assertEqual(
+            User.objects.get(email="customer@example.com").role,
+            "customer",
+        )
+
     def test_duplicate_email_is_rejected(self):
         self.create_user()
 
@@ -125,7 +149,11 @@ class AuthenticationTests(APITestCase):
     # ---------------------------------------------------------
 
     def test_user_can_login(self):
-        self.create_user()
+        self.client.post(
+            self.register_url,
+            self.user_data,
+            format="json",
+        )
 
         response = self.login_user()
 
