@@ -1,1 +1,9 @@
 venv/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+*.class
+
+# Django local database
+db.sqlite3
