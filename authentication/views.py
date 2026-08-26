@@ -131,3 +131,20 @@ class LogoutView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class MeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        return Response(
+            {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+            },
+            status=status.HTTP_200_OK,
+        )
