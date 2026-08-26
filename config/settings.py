@@ -29,10 +29,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Django REST Framework
+    # Third-party apps
     'rest_framework',
-
-    # JWT token blacklist
+    'corsheaders',
     'rest_framework_simplejwt.token_blacklist',
 
     # Project apps
@@ -46,6 +45,10 @@ AUTH_USER_MODEL = 'authentication.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+
+    # CORS middleware must be before CommonMiddleware
+    'corsheaders.middleware.CorsMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -142,3 +145,11 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
 }
+
+
+# CORS
+# React + Vite development server
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
