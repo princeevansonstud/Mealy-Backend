@@ -27,3 +27,4 @@ class DailyMenuItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     daily_menu_id = Column(Integer, ForeignKey("daily_menus.id"), nullable=False)
     meal_option_id = Column(Integer, ForeignKey("meal_options.id"), nullable=False)
+
