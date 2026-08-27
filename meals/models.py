@@ -6,7 +6,7 @@ class MealOption(Base):
     __tablename__ = "meal_options"
 
     id = Column(Integer, primary_key=True, index=True)
-    caterer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    caterer_id = Column(Integer, ForeignKey("authentication_user.id"), nullable=False)
     title = Column(String(100), nullable=False)
     price = Column(Float, nullable=False)
     description = Column(String(255), nullable=True)
@@ -17,7 +17,7 @@ class DailyMenu(Base):
     __tablename__ = "daily_menus"
 
     id = Column(Integer, primary_key=True, index=True)
-    caterer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    caterer_id = Column(Integer, ForeignKey("authentication_user.id"), nullable=False)
     menu_date = Column(Date, nullable=False)
 
 
