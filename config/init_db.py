@@ -1,6 +1,8 @@
 from config.db import Base, engine
-from authentication.models import User
+import authentication.models  # Register SQLAlchemy mappings before creating tables.
+import meals.models  # Register SQLAlchemy mappings before creating tables.
+import orders.models  # Register SQLAlchemy mappings before creating tables.
 
 Base.metadata.create_all(bind=engine)
 
-print("Users table created successfully.")
+print("Database tables created successfully.")

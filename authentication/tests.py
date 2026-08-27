@@ -1,15 +1,30 @@
+from django.test import SimpleTestCase
 from django.urls import reverse
 
 from rest_framework import status
-from rest_framework.test import APITestCase
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.test import APIClient
+from sqlalchemy import delete, func, select
 
-from .models import User
+from config.db import Base, SessionLocal, engine
+from .models import BlacklistedToken, OutstandingToken, User
 
 
-class AuthenticationTests(APITestCase):
+class AuthenticationTests(SimpleTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        Base.metadata.create_all(bind=engine)
+
+    def tearDown(self):
+        with SessionLocal.begin() as session:
+            session.execute(delete(BlacklistedToken))
+            session.execute(delete(OutstandingToken))
+            session.execute(delete(User))
+        super().tearDown()
 
     def setUp(self):
+        self.client = APIClient()
         self.register_url = reverse("register")
         self.login_url = reverse("login")
         self.me_url = reverse("me")
@@ -24,12 +39,24 @@ class AuthenticationTests(APITestCase):
         }
 
     def create_user(self):
-        return User.objects.create_user(
-            name="Test Customer",
-            email="customer@example.com",
-            password="password@123",
-            role="customer",
-        )
+        with SessionLocal.begin() as session:
+            user = User.create(
+                name="Test Customer",
+                email="customer@example.com",
+                password="password@123",
+                role="customer",
+            )
+            session.add(user)
+            session.flush()
+            return user
+
+    def user_count(self):
+        with SessionLocal() as session:
+            return session.scalar(select(func.count()).select_from(User))
+
+    def get_user(self, email):
+        with SessionLocal() as session:
+            return session.scalar(select(User).where(User.email == email))
 
     def login_user(self):
         response = self.client.post(
@@ -60,7 +87,7 @@ class AuthenticationTests(APITestCase):
         )
 
         self.assertEqual(
-            User.objects.count(),
+            self.user_count(),
             1,
         )
 
@@ -75,7 +102,7 @@ class AuthenticationTests(APITestCase):
         )
 
         self.assertEqual(
-            User.objects.get(email="customer@example.com").role,
+            self.get_user("customer@example.com").role,
             "customer",
         )
 
@@ -95,7 +122,7 @@ class AuthenticationTests(APITestCase):
         )
 
         self.assertEqual(
-            User.objects.get(email="customer@example.com").role,
+            self.get_user("customer@example.com").role,
             "customer",
         )
 
@@ -236,12 +263,15 @@ class AuthenticationTests(APITestCase):
         )
 
     def test_caterer_can_be_created(self):
-        caterer = User.objects.create_user(
-            name="Test Caterer",
-            email="caterer@example.com",
-            password="password@123",
-            role="caterer",
-        )
+        with SessionLocal.begin() as session:
+            caterer = User.create(
+                name="Test Caterer",
+                email="caterer@example.com",
+                password="password@123",
+                role="caterer",
+            )
+            session.add(caterer)
+            session.flush()
 
         self.assertEqual(
             caterer.role,
@@ -251,6 +281,20 @@ class AuthenticationTests(APITestCase):
     # ---------------------------------------------------------
     # Logout tests
     # ---------------------------------------------------------
+
+    def test_refresh_token_returns_a_new_access_token(self):
+        self.create_user()
+
+        login_response = self.login_user()
+
+        response = self.client.post(
+            self.refresh_url,
+            {"refresh": login_response.data["refresh"]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", response.data)
 
     def test_user_can_logout(self):
         self.create_user()
