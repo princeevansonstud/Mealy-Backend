@@ -22,25 +22,16 @@ ALLOWED_HOSTS = []
 
 # Application definition
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
     'django.contrib.staticfiles',
 
     # Third-party apps
     'rest_framework',
     'corsheaders',
-    'rest_framework_simplejwt.token_blacklist',
-
     # Project apps
     'authentication',
+    'meals',
+    'orders',
 ]
-
-
-# Custom user model
-AUTH_USER_MODEL = 'authentication.User'
 
 
 MIDDLEWARE = [
@@ -49,12 +40,10 @@ MIDDLEWARE = [
     # CORS middleware must be before CommonMiddleware
     'corsheaders.middleware.CorsMiddleware',
 
-    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'config.db.SQLAlchemySessionMiddleware',
 ]
 
 
@@ -69,8 +58,6 @@ TEMPLATES = [
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
             ],
         },
     },
@@ -78,15 +65,6 @@ TEMPLATES = [
 
 
 WSGI_APPLICATION = 'config.wsgi.application'
-
-
-# Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
 
 
 # Password validation
@@ -131,8 +109,10 @@ MAILERS = {
 # Django REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'authentication.jwt.SQLAlchemyJWTAuthentication',
     ),
+    # Django's AnonymousUser is ORM-backed when auth/contenttypes are absent.
+    'UNAUTHENTICATED_USER': None,
 }
 
 

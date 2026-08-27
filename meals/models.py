@@ -1,12 +1,13 @@
-from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy import Float, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
 from config.db import Base
 
 
 class Meal(Base):
     __tablename__ = "meals"
 
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(100), nullable=False)
-    price = Column(Float, nullable=False)
-    description = Column(String(255), nullable=True)
-    image_url = Column(String(255), nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    price: Mapped[float] = mapped_column(Float, nullable=False)
+    description: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    image_url: Mapped[str | None] = mapped_column(String(255), nullable=True)

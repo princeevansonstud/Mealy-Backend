@@ -2,8 +2,8 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
-
+from .jwt import blacklist_refresh_token, create_access_token, validate_refresh_token
+from .models import User
 from .serializers import LoginSerializer, RegisterSerializer
 
 
@@ -11,7 +11,7 @@ class RegisterView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
+        serializer = RegisterSerializer(data=request.data, context={"request": request})
 
         if serializer.is_valid():
             user = serializer.save()
@@ -39,7 +39,7 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
+        serializer = LoginSerializer(data=request.data, context={"request": request})
 
         if serializer.is_valid():
             data = serializer.validated_data
@@ -81,11 +81,15 @@ class RefreshTokenView(APIView):
             )
 
         try:
-            refresh = RefreshToken(refresh_token)
+            payload = validate_refresh_token(refresh_token, request.db)
+            user = request.db.get(User, int(payload["user_id"]))
+            if user is None or not user.is_active:
+                raise ValueError("User not found or inactive")
+            access = create_access_token(user)
 
             return Response(
                 {
-                    "access": str(refresh.access_token),
+                    "access": access,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -114,8 +118,7 @@ class LogoutView(APIView):
             )
 
         try:
-            refresh = RefreshToken(refresh_token)
-            refresh.blacklist()
+            blacklist_refresh_token(refresh_token, request.db)
 
             return Response(
                 {

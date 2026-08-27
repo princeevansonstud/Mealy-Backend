@@ -1,13 +1,16 @@
-from django.contrib.auth import authenticate, password_validation
+from django.contrib.auth import password_validation
 from django.core.exceptions import ValidationError
 
 from rest_framework import serializers
-from rest_framework_simplejwt.tokens import RefreshToken
+from sqlalchemy import func, select
 
+from .jwt import create_token_pair
 from .models import User
 
 
-class RegisterSerializer(serializers.ModelSerializer):
+class RegisterSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
     password = serializers.CharField(
         write_only=True,
         min_length=8
@@ -17,19 +20,14 @@ class RegisterSerializer(serializers.ModelSerializer):
         write_only=True
     )
 
-    class Meta:
-        model = User
-        fields = [
-            "name",
-            "email",
-            "password",
-            "password_confirm",
-        ]
-
     def validate_email(self, value):
         email = value.strip().lower()
 
-        if User.objects.filter(email__iexact=email).exists():
+        session = self.context["request"].db
+        exists = session.scalar(
+            select(User.id).where(func.lower(User.email) == email).limit(1)
+        )
+        if exists is not None:
             raise serializers.ValidationError(
                 "A user with this email already exists."
             )
@@ -62,11 +60,10 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         password = validated_data.pop("password")
 
-        user = User.objects.create_user(
-            password=password,
-            role="customer",
-            **validated_data
-        )
+        user = User.create(password=password, role="customer", **validated_data)
+        session = self.context["request"].db
+        session.add(user)
+        session.flush()
 
         return user
 
@@ -79,12 +76,9 @@ class LoginSerializer(serializers.Serializer):
         email = attrs.get("email", "").strip().lower()
         password = attrs.get("password")
 
-        user = authenticate(
-            username=email,
-            password=password
-        )
-
-        if user is None:
+        session = self.context["request"].db
+        user = session.scalar(select(User).where(func.lower(User.email) == email))
+        if user is None or not user.check_password(password):
             raise serializers.ValidationError(
                 "Invalid email or password."
             )
@@ -94,10 +88,10 @@ class LoginSerializer(serializers.Serializer):
                 "This account is inactive."
             )
 
-        refresh = RefreshToken.for_user(user)
+        access, refresh = create_token_pair(user, session)
 
         return {
             "user": user,
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
+            "access": access,
+            "refresh": refresh,
         }

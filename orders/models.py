@@ -1,3 +1,1 @@
-from django.db import models
-
-# Create your models here.
+"""Order persistence models will use the shared SQLAlchemy declarative base."""
