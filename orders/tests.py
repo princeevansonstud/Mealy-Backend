@@ -88,4 +88,9 @@ class OrderApiTests(TestCase):
 		self.assertEqual(response.json()["total_orders"], 2)
 		self.assertEqual(response.json()["total_meals_sold"], 3)
 
+		invalid_date = self.client.get(
+			"/api/orders/earnings/?date=28-08-2026"
+		)
+		self.assertEqual(invalid_date.status_code, 400)
+
 # Create your tests here.

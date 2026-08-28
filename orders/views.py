@@ -239,8 +239,18 @@ def earnings(request):
     db = SessionLocal()
 
     try:
-        today = date.today()
-        start = datetime.combine(today, datetime.min.time())
+        requested_date = request.GET.get("date")
+        if requested_date:
+            try:
+                earnings_date = date.fromisoformat(requested_date)
+            except ValueError:
+                return JsonResponse({
+                    "error": "date must use YYYY-MM-DD format"
+                }, status=400)
+        else:
+            earnings_date = date.today()
+
+        start = datetime.combine(earnings_date, datetime.min.time())
         end = start + timedelta(days=1)
 
         today_orders = db.query(Order).filter(
@@ -268,7 +278,7 @@ def earnings(request):
         )
 
         return JsonResponse({
-            "date": today.isoformat(),
+            "date": earnings_date.isoformat(),
             "total_earnings": round(total_earnings, 2),
             "total_orders": total_orders,
             "total_meals_sold": total_meals_sold,
