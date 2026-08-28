@@ -1,24 +1,14 @@
-"""SQLAlchemy engine and request-scoped session helpers."""
-
 import os
-from collections.abc import Generator
-
 from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
-
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db.sqlite3")
 engine = create_engine(DATABASE_URL, future=True)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, expire_on_commit=False)
 
 
-class Base(DeclarativeBase):
-    pass
-
-
-def get_db() -> Generator[Session, None, None]:
-    """Yield a session for scripts and non-request callers."""
-    session = SessionLocal()
+def get_db():
+    db = SessionLocal()
     try:
         yield session
         session.commit()
