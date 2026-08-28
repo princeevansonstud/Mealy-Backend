@@ -2,18 +2,117 @@ from django.shortcuts import render
 
 # Create your views here.
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from config.db import SessionLocal
+from config.db import Base, SessionLocal, engine
 from orders.models import Order, OrderItem
 from meals.models import Meal
+
+Base.metadata.create_all(bind=engine)
+
+
+ALLOWED_STATUSES = [
+    "Pending",
+    "Preparing",
+    "Completed",
+    "Cancelled"
+]
+
+
+def _serialize_order(order, db):
+    items = []
+
+    for item in order.items:
+        meal = db.query(Meal).filter(
+            Meal.id == item.meal_id
+        ).first()
+
+        items.append({
+            "id": item.id,
+            "meal_id": item.meal_id,
+            "meal_name": meal.title if meal else "Unknown meal",
+            "quantity": item.quantity,
+            "unit_price": item.unit_price,
+            "subtotal": item.subtotal
+        })
+
+    return {
+        "id": order.id,
+        "customer_id": order.customer_id,
+        "status": order.status,
+        "total_amount": order.total_amount,
+        "created_at": order.created_at.isoformat(),
+        "items": items
+    }
+
+
+@csrf_exempt
+def create_order(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    raw_items = data.get("items")
+    if not isinstance(raw_items, list) or not raw_items:
+        return JsonResponse({"error": "items must be a non-empty list"}, status=400)
+
+    db = SessionLocal()
+
+    try:
+        order_items = []
+        total_amount = 0
+
+        for raw_item in raw_items:
+            meal_id = raw_item.get("meal_id") if isinstance(raw_item, dict) else None
+            quantity = raw_item.get("quantity") if isinstance(raw_item, dict) else None
+
+            if not isinstance(meal_id, int) or not isinstance(quantity, int) or quantity < 1:
+                return JsonResponse({
+                    "error": "Each item requires an integer meal_id and positive integer quantity"
+                }, status=400)
+
+            meal = db.query(Meal).filter(Meal.id == meal_id).first()
+            if not meal:
+                return JsonResponse({"error": f"Meal {meal_id} not found"}, status=404)
+
+            subtotal = round(meal.price * quantity, 2)
+            total_amount += subtotal
+            order_items.append(OrderItem(
+                meal_id=meal.id,
+                quantity=quantity,
+                unit_price=meal.price,
+                subtotal=subtotal
+            ))
+
+        order = Order(
+            customer_id=data.get("customer_id"),
+            total_amount=round(total_amount, 2),
+            items=order_items
+        )
+        db.add(order)
+        db.commit()
+        db.refresh(order)
+
+        return JsonResponse(_serialize_order(order, db), status=201)
+    except (TypeError, ValueError):
+        db.rollback()
+        return JsonResponse({"error": "Invalid order data"}, status=400)
+    finally:
+        db.close()
 
 
 # View all orders
 def order_list(request):
+    if request.method == "POST":
+        return create_order(request)
+
     if request.method != "GET":
         return JsonResponse(
             {"error": "Method not allowed"},
@@ -27,33 +126,7 @@ def order_list(request):
             Order.created_at.desc()
         ).all()
 
-        result = []
-
-        for order in orders:
-            items = []
-
-            for item in order.items:
-                meal = db.query(Meal).filter(
-                    Meal.id == item.meal_id
-                ).first()
-
-                items.append({
-                    "id": item.id,
-                    "meal_id": item.meal_id,
-                    "meal_name": meal.title if meal else "Unknown meal",
-                    "quantity": item.quantity,
-                    "unit_price": item.unit_price,
-                    "subtotal": item.subtotal
-                })
-
-            result.append({
-                "id": order.id,
-                "customer_id": order.customer_id,
-                "status": order.status,
-                "total_amount": order.total_amount,
-                "created_at": order.created_at.isoformat(),
-                "items": items
-            })
+        result = [_serialize_order(order, db) for order in orders]
 
         return JsonResponse(result, safe=False)
 
@@ -82,30 +155,7 @@ def order_detail(request, order_id):
                 status=404
             )
 
-        items = []
-
-        for item in order.items:
-            meal = db.query(Meal).filter(
-                Meal.id == item.meal_id
-            ).first()
-
-            items.append({
-                "id": item.id,
-                "meal_id": item.meal_id,
-                "meal_name": meal.title if meal else "Unknown meal",
-                "quantity": item.quantity,
-                "unit_price": item.unit_price,
-                "subtotal": item.subtotal
-            })
-
-        return JsonResponse({
-            "id": order.id,
-            "customer_id": order.customer_id,
-            "status": order.status,
-            "total_amount": order.total_amount,
-            "created_at": order.created_at.isoformat(),
-            "items": items
-        })
+        return JsonResponse(_serialize_order(order, db))
 
     finally:
         db.close()
@@ -130,17 +180,10 @@ def update_order_status(request, order_id):
 
     new_status = data.get("status")
 
-    allowed_statuses = [
-        "Pending",
-        "Preparing",
-        "Completed",
-        "Cancelled"
-    ]
-
-    if new_status not in allowed_statuses:
+    if new_status not in ALLOWED_STATUSES:
         return JsonResponse({
             "error": "Invalid status",
-            "allowed_statuses": allowed_statuses
+            "allowed_statuses": ALLOWED_STATUSES
         }, status=400)
 
     db = SessionLocal()
@@ -186,15 +229,14 @@ def earnings(request):
 
     try:
         today = date.today()
+        start = datetime.combine(today, datetime.min.time())
+        end = start + timedelta(days=1)
 
-        orders = db.query(Order).filter(
-            Order.status == "Completed"
+        today_orders = db.query(Order).filter(
+            Order.status == "Completed",
+            Order.created_at >= start,
+            Order.created_at < end
         ).all()
-
-        today_orders = [
-            order for order in orders
-            if order.created_at.date() == today
-        ]
 
         total_earnings = sum(
             order.total_amount
