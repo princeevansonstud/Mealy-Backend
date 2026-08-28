@@ -1,7 +1,16 @@
-# meals/urls.py
 from django.urls import path
-from . import views
+
+from .views import (
+    DailyMenuItemCreateView,
+    DailyMenuListCreateView,
+    DailyMenuTodayView,
+    MealOptionListCreateView,
+)
+
 
 urlpatterns = [
-    path('', views.meal_list_create, name='meal-list-create'),
+    path("options/", MealOptionListCreateView.as_view(), name="meal-options"),
+    path("daily-menu/", DailyMenuListCreateView.as_view(), name="daily-menu"),
+    path("daily-menu/today/", DailyMenuTodayView.as_view(), name="daily-menu-today"),
+    path("daily-menu-items/", DailyMenuItemCreateView.as_view(), name="daily-menu-items"),
 ]

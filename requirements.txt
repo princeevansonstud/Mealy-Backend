@@ -1,0 +1,8 @@
+Django==6.1
+djangorestframework==3.18.0
+django-cors-headers
+SQLAlchemy==2.0.52
+alembic==1.19.1
+PyJWT==2.13.0
+passlib==1.7.4
+bcrypt==4.0.1
