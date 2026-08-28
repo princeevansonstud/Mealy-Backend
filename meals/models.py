@@ -8,6 +8,7 @@ class MealOption(Base):
     id = Column(Integer, primary_key=True, index=True)
     caterer_id = Column(Integer, ForeignKey("authentication_user.id"), nullable=False)
     title = Column(String(100), nullable=False)
+    category = Column(String(50), nullable=True)
     price = Column(Float, nullable=False)
     description = Column(String(255), nullable=True)
     image_url = Column(String(255), nullable=True)

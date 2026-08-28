@@ -7,6 +7,7 @@ class MealOptionSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     caterer_id = serializers.IntegerField()
     title = serializers.CharField(max_length=100)
+    category = serializers.CharField(max_length=50, required=False, allow_null=True)
     price = serializers.FloatField()
     description = serializers.CharField(max_length=255, required=False, allow_null=True)
     image_url = serializers.CharField(max_length=255, required=False, allow_null=True)
@@ -67,6 +68,7 @@ class DailyMenuWithItemsSerializer(serializers.Serializer):
                     "item_id": item.id,
                     "meal_option_id": meal.id,
                     "title": meal.title,
+                    "category": meal.category,
                     "price": meal.price,
                     "description": meal.description,
                     "image_url": meal.image_url,
