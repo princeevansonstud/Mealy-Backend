@@ -32,18 +32,25 @@ def _serialize_order(order, db):
         items.append({
             "id": item.id,
             "meal_id": item.meal_id,
+            "name": meal.title if meal else "Unknown meal",
             "meal_name": meal.title if meal else "Unknown meal",
             "quantity": item.quantity,
+            "price": item.unit_price,
             "unit_price": item.unit_price,
+            "unitPrice": item.unit_price,
             "subtotal": item.subtotal
         })
 
     return {
         "id": order.id,
         "customer_id": order.customer_id,
+        "customerId": order.customer_id,
+        "userId": order.customer_id,
         "status": order.status,
         "total_amount": order.total_amount,
+        "totalAmount": order.total_amount,
         "created_at": order.created_at.isoformat(),
+        "createdAt": order.created_at.isoformat(),
         "items": items
     }
 
@@ -69,17 +76,22 @@ def create_order(request):
         total_amount = 0
 
         for raw_item in raw_items:
-            meal_id = raw_item.get("meal_id") if isinstance(raw_item, dict) else None
+            meal_id = raw_item.get("meal_id", raw_item.get("id")) if isinstance(raw_item, dict) else None
             quantity = raw_item.get("quantity") if isinstance(raw_item, dict) else None
 
-            if not isinstance(meal_id, int) or not isinstance(quantity, int) or quantity < 1:
+            if not isinstance(quantity, int) or quantity < 1:
                 return JsonResponse({
-                    "error": "Each item requires an integer meal_id and positive integer quantity"
+                    "error": "Each item requires a meal id or name and positive integer quantity"
                 }, status=400)
 
-            meal = db.query(Meal).filter(Meal.id == meal_id).first()
+            if isinstance(meal_id, int):
+                meal = db.query(Meal).filter(Meal.id == meal_id).first()
+            else:
+                meal_name = raw_item.get("name", raw_item.get("title"))
+                meal = db.query(Meal).filter(Meal.title == meal_name).first()
+
             if not meal:
-                return JsonResponse({"error": f"Meal {meal_id} not found"}, status=404)
+                return JsonResponse({"error": "Meal not found"}, status=404)
 
             subtotal = round(meal.price * quantity, 2)
             total_amount += subtotal

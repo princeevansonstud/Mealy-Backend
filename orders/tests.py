@@ -61,6 +61,21 @@ class OrderApiTests(TestCase):
 		self.assertEqual(response.json()["items"][0]["subtotal"], 31.0)
 
 	@override_settings(ALLOWED_HOSTS=["testserver"])
+	def test_create_order_accepts_frontend_item_shape(self):
+		response = self.client.post(
+			"/api/orders/",
+			{
+				"userId": "customer@example.com",
+				"items": [{"name": "Test Meal", "price": 999, "quantity": 1}]
+			},
+			content_type="application/json"
+		)
+
+		self.assertEqual(response.status_code, 201)
+		self.assertEqual(response.json()["totalAmount"], 15.5)
+		self.assertEqual(response.json()["items"][0]["name"], "Test Meal")
+
+	@override_settings(ALLOWED_HOSTS=["testserver"])
 	def test_earnings_counts_completed_orders_only(self):
 		completed = Order(customer_id=1, status="Completed", total_amount=31)
 		pending = Order(customer_id=2, status="Pending", total_amount=99)
