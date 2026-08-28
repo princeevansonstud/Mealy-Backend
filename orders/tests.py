@@ -64,13 +64,14 @@ class OrderApiTests(TestCase):
 	def test_earnings_counts_completed_orders_only(self):
 		completed = Order(customer_id=1, status="Completed", total_amount=31)
 		pending = Order(customer_id=2, status="Pending", total_amount=99)
+		cancelled = Order(customer_id=3, status="Cancelled", total_amount=50)
 		completed.items.append(OrderItem(
 			meal_id=self.meal.id,
 			quantity=2,
 			unit_price=15.50,
 			subtotal=31
 		))
-		self.session.add_all([completed, pending])
+		self.session.add_all([completed, pending, cancelled])
 		self.session.commit()
 
 		response = self.client.get("/api/orders/earnings/")
