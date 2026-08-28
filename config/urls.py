@@ -17,6 +17,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+from config.db import Base, engine
+from meals.models import Meal
+from orders.models import Order, OrderItem
+
+Base.metadata.create_all(bind=engine)
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/meals/', include('meals.urls')),

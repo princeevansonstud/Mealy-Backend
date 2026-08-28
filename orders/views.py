@@ -7,12 +7,9 @@ from datetime import date, datetime, timedelta
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from config.db import Base, SessionLocal, engine
+from config.db import SessionLocal
 from orders.models import Order, OrderItem
 from meals.models import Meal
-
-Base.metadata.create_all(bind=engine)
-
 
 ALLOWED_STATUSES = [
     "Pending",
