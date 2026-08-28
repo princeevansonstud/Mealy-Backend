@@ -253,6 +253,11 @@ def earnings(request):
         )
 
         total_orders = len(today_orders)
+        total_meals_sold = sum(
+            item.quantity
+            for order in today_orders
+            for item in order.items
+        )
 
         average_order_value = (
             total_earnings / total_orders
@@ -264,6 +269,7 @@ def earnings(request):
             "date": today.isoformat(),
             "total_earnings": round(total_earnings, 2),
             "total_orders": total_orders,
+            "total_meals_sold": total_meals_sold,
             "average_order_value": round(
                 average_order_value,
                 2

@@ -64,6 +64,12 @@ class OrderApiTests(TestCase):
 	def test_earnings_counts_completed_orders_only(self):
 		completed = Order(customer_id=1, status="Completed", total_amount=31)
 		pending = Order(customer_id=2, status="Pending", total_amount=99)
+		completed.items.append(OrderItem(
+			meal_id=self.meal.id,
+			quantity=2,
+			unit_price=15.50,
+			subtotal=31
+		))
 		self.session.add_all([completed, pending])
 		self.session.commit()
 
@@ -72,5 +78,6 @@ class OrderApiTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(response.json()["total_earnings"], 31.0)
 		self.assertEqual(response.json()["total_orders"], 1)
+		self.assertEqual(response.json()["total_meals_sold"], 2)
 
 # Create your tests here.
