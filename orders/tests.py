@@ -65,20 +65,27 @@ class OrderApiTests(TestCase):
 		completed = Order(customer_id=1, status="Completed", total_amount=31)
 		pending = Order(customer_id=2, status="Pending", total_amount=99)
 		cancelled = Order(customer_id=3, status="Cancelled", total_amount=50)
+		delivered = Order(customer_id=4, status="Delivered", total_amount=15.50)
 		completed.items.append(OrderItem(
 			meal_id=self.meal.id,
 			quantity=2,
 			unit_price=15.50,
 			subtotal=31
 		))
-		self.session.add_all([completed, pending, cancelled])
+		delivered.items.append(OrderItem(
+			meal_id=self.meal.id,
+			quantity=1,
+			unit_price=15.50,
+			subtotal=15.50
+		))
+		self.session.add_all([completed, pending, cancelled, delivered])
 		self.session.commit()
 
 		response = self.client.get("/api/orders/earnings/")
 
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(response.json()["total_earnings"], 31.0)
-		self.assertEqual(response.json()["total_orders"], 1)
-		self.assertEqual(response.json()["total_meals_sold"], 2)
+		self.assertEqual(response.json()["total_earnings"], 46.5)
+		self.assertEqual(response.json()["total_orders"], 2)
+		self.assertEqual(response.json()["total_meals_sold"], 3)
 
 # Create your tests here.

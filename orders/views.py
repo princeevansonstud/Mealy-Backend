@@ -15,8 +15,10 @@ ALLOWED_STATUSES = [
     "Pending",
     "Preparing",
     "Completed",
+    "Delivered",
     "Cancelled"
 ]
+EARNING_STATUSES = ("Completed", "Delivered")
 
 
 def _serialize_order(order, db):
@@ -242,7 +244,7 @@ def earnings(request):
         end = start + timedelta(days=1)
 
         today_orders = db.query(Order).filter(
-            Order.status == "Completed",
+            Order.status.in_(EARNING_STATUSES),
             Order.created_at >= start,
             Order.created_at < end
         ).all()
