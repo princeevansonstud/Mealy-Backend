@@ -119,9 +119,21 @@ def order_list(request):
     db = SessionLocal()
 
     try:
-        orders = db.query(Order).order_by(
-            Order.created_at.desc()
-        ).all()
+        query = db.query(Order)
+        customer_id = request.GET.get("customer_id")
+
+        if customer_id is not None:
+            try:
+                customer_id = int(customer_id)
+            except ValueError:
+                return JsonResponse(
+                    {"error": "customer_id must be an integer"},
+                    status=400
+                )
+
+            query = query.filter(Order.customer_id == customer_id)
+
+        orders = query.order_by(Order.created_at.desc()).all()
 
         result = [_serialize_order(order, db) for order in orders]
 
