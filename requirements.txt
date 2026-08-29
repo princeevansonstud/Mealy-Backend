@@ -1,5 +1,8 @@
 gunicorn==26.2.0
 django
 djangorestframework
+django-cors-headers
 psycopg2-binary
 dj-database-url
+marshmallow
+WTForms
