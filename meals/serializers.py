@@ -1,81 +1,108 @@
 from rest_framework import serializers
+from .models import DailyMenu, DailyMenuItem, MealOption, Meal, Order
 
-from .models import DailyMenu, DailyMenuItem, MealOption
+
+class MealSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Meal
+        fields = [
+            'id',
+            'name',
+            'description',
+            'price',
+            'category',
+            'is_on_daily_menu',
+            'created_at',
+        ]
 
 
-class MealOptionSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
+class OrderSerializer(serializers.ModelSerializer):
+    customerName = serializers.CharField(
+        source='customer_name', required=False, allow_blank=True
+    )
+    totalAmount = serializers.DecimalField(
+        source='total_amount', max_digits=10, decimal_places=2, required=False
+    )
+
+    class Meta:
+        model = Order
+        fields = ['id', 'customerName', 'totalAmount', 'status', 'created_at']
+
+
+class MealOptionSerializer(serializers.ModelSerializer):
+    # Field mappings to support frontend sending 'name' instead of 'title'
+    name = serializers.CharField(write_only=True, required=False)
     caterer_id = serializers.IntegerField(read_only=True)
-    title = serializers.CharField(max_length=100)
-    category = serializers.CharField(
-        max_length=50, required=False, allow_null=True)
-    price = serializers.FloatField()
-    description = serializers.CharField(
-        max_length=255, required=False, allow_null=True)
-    image_url = serializers.CharField(
-        max_length=255, required=False, allow_null=True)
+
+    class Meta:
+        model = MealOption
+        fields = [
+            'id',
+            'caterer_id',
+            'title',
+            'name',
+            'category',
+            'price',
+            'description',
+            'image_url',
+        ]
+        extra_kwargs = {
+            'title': {'required': False},
+            'category': {'required': False, 'allow_null': True, 'allow_blank': True},
+            'description': {'required': False, 'allow_null': True, 'allow_blank': True},
+            'image_url': {'required': False, 'allow_null': True, 'allow_blank': True},
+        }
+
+    def validate(self, attrs):
+        # Map 'name' to 'title' if present in incoming JSON payload
+        if 'name' in attrs and 'title' not in attrs:
+            attrs['title'] = attrs.pop('name')
+        return attrs
 
     def create(self, validated_data):
-        request = self.context["request"]
-        session = request.db
+        # Fallback to user ID 1 if request user is unauthenticated during local tests
+        request = self.context.get('request')
+        user = getattr(request, 'user', None) if request else None
+        caterer_id = user.id if user and user.is_authenticated else 1
 
-        # Inject the authenticated caterer's ID automatically
-        caterer_id = getattr(request.user, "id", 1)
-        meal = MealOption(caterer_id=caterer_id, **validated_data)
-
-        session.add(meal)
-        session.flush()
-        return meal
+        return MealOption.objects.create(caterer_id=caterer_id, **validated_data)
 
 
-class DailyMenuSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
+class DailyMenuSerializer(serializers.ModelSerializer):
     caterer_id = serializers.IntegerField(read_only=True)
-    menu_date = serializers.DateField()
+
+    class Meta:
+        model = DailyMenu
+        fields = ['id', 'caterer_id', 'menu_date']
 
     def create(self, validated_data):
-        request = self.context["request"]
-        session = request.db
+        request = self.context.get('request')
+        user = getattr(request, 'user', None) if request else None
+        caterer_id = user.id if user and user.is_authenticated else 1
 
-        # Inject the authenticated caterer's ID automatically
-        caterer_id = getattr(request.user, "id", 1)
-        menu = DailyMenu(caterer_id=caterer_id, **validated_data)
-
-        session.add(menu)
-        session.flush()
-        return menu
+        return DailyMenu.objects.create(caterer_id=caterer_id, **validated_data)
 
 
-class DailyMenuItemSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    daily_menu_id = serializers.IntegerField()
-    meal_option_id = serializers.IntegerField()
-
-    def create(self, validated_data):
-        session = self.context["request"].db
-        item = DailyMenuItem(**validated_data)
-        session.add(item)
-        session.flush()
-        return item
+class DailyMenuItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DailyMenuItem
+        fields = ['id', 'daily_menu', 'meal_option']
 
 
-class DailyMenuWithItemsSerializer(serializers.Serializer):
-    """Read-only nested view: a daily menu with its meal options attached."""
-    id = serializers.IntegerField(read_only=True)
-    caterer_id = serializers.IntegerField(read_only=True)
-    menu_date = serializers.DateField(read_only=True)
+class DailyMenuWithItemsSerializer(serializers.ModelSerializer):
     meals = serializers.SerializerMethodField()
 
+    class Meta:
+        model = DailyMenu
+        fields = ['id', 'caterer_id', 'menu_date', 'meals']
+
     def get_meals(self, menu):
-        session = self.context["request"].db
-        items = (
-            session.query(DailyMenuItem)
-            .filter(DailyMenuItem.daily_menu_id == menu.id)
-            .all()
-        )
+        # Django ORM relationship retrieval
+        items = DailyMenuItem.objects.filter(
+            daily_menu=menu).select_related('meal_option')
         result = []
         for item in items:
-            meal = session.get(MealOption, item.meal_option_id)
+            meal = item.meal_option
             if meal:
                 result.append({
                     "item_id": item.id,

@@ -11,6 +11,8 @@ class Order(Base):
     user_id = Column(Integer, nullable=False, index=True)
     total_amount = Column(Float, nullable=False)
     status = Column(String(50), default="Pending")
+    checkout_request_id = Column(String(255), nullable=True, index=True)
+    mpesa_receipt_number = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     items = relationship("OrderItem", back_populates="order",

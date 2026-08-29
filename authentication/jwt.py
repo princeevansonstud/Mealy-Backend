@@ -1,5 +1,3 @@
-"""JWT handling backed by SQLAlchemy."""
-
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -36,8 +34,10 @@ def _encode(user: User, token_type: str, lifetime: timedelta) -> tuple[str, str,
 
 def create_token_pair(user: User, session) -> tuple[str, str]:
     jwt_settings = settings.SIMPLE_JWT
-    access, _, _ = _encode(user, "access", jwt_settings["ACCESS_TOKEN_LIFETIME"])
-    refresh, jti, expires_at = _encode(user, "refresh", jwt_settings["REFRESH_TOKEN_LIFETIME"])
+    access, _, _ = _encode(
+        user, "access", jwt_settings["ACCESS_TOKEN_LIFETIME"])
+    refresh, jti, expires_at = _encode(
+        user, "refresh", jwt_settings["REFRESH_TOKEN_LIFETIME"])
     session.add(
         OutstandingToken(
             user_id=user.id,
@@ -51,33 +51,41 @@ def create_token_pair(user: User, session) -> tuple[str, str]:
 
 
 def create_access_token(user: User) -> str:
-    access, _, _ = _encode(user, "access", settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"])
+    access, _, _ = _encode(
+        user, "access", settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"])
     return access
 
 
-def decode_token(raw_token: str, expected_type: str) -> dict:
+def decode_token(raw_token: str, expected_type: str | None = None) -> dict:
     try:
-        payload = jwt.decode(raw_token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(raw_token, settings.SECRET_KEY,
+                             algorithms=[ALGORITHM])
     except jwt.PyJWTError as error:
-        raise exceptions.AuthenticationFailed("Invalid or expired token.") from error
-    if payload.get("token_type") != expected_type:
+        raise exceptions.AuthenticationFailed(
+            "Invalid or expired token.") from error
+    token_type = payload.get("token_type")
+    if expected_type and token_type and token_type != expected_type:
         raise exceptions.AuthenticationFailed("Invalid token type.")
     return payload
 
 
 def blacklist_refresh_token(raw_token: str, session) -> None:
     payload = decode_token(raw_token, "refresh")
-    outstanding = session.scalar(select(OutstandingToken).where(OutstandingToken.jti == payload["jti"]))
+    outstanding = session.scalar(select(OutstandingToken).where(
+        OutstandingToken.jti == payload["jti"]))
     if outstanding is None or outstanding.blacklisted_token is not None:
-        raise exceptions.AuthenticationFailed("Invalid or expired refresh token.")
+        raise exceptions.AuthenticationFailed(
+            "Invalid or expired refresh token.")
     session.add(BlacklistedToken(token=outstanding))
 
 
 def validate_refresh_token(raw_token: str, session) -> dict:
     payload = decode_token(raw_token, "refresh")
-    outstanding = session.scalar(select(OutstandingToken).where(OutstandingToken.jti == payload["jti"]))
+    outstanding = session.scalar(select(OutstandingToken).where(
+        OutstandingToken.jti == payload["jti"]))
     if outstanding is None or outstanding.blacklisted_token is not None:
-        raise exceptions.AuthenticationFailed("Invalid or expired refresh token.")
+        raise exceptions.AuthenticationFailed(
+            "Invalid or expired refresh token.")
     return payload
 
 
@@ -92,13 +100,28 @@ class SQLAlchemyJWTAuthentication(authentication.BaseAuthentication):
         if not header:
             return None
         if len(header) != 2 or header[0].decode().lower() != self.keyword.lower():
-            raise exceptions.AuthenticationFailed("Invalid authorization header.")
-        payload = decode_token(header[1].decode(), "access")
+            raise exceptions.AuthenticationFailed(
+                "Invalid authorization header.")
+
+        token_str = header[1].decode().strip('"\'')
+        payload = decode_token(token_str, "access")
+
         try:
             user_id = int(payload["user_id"])
         except (KeyError, TypeError, ValueError) as error:
-            raise exceptions.AuthenticationFailed("Invalid token user.") from error
-        user = request.db.get(User, user_id)
-        if user is None or not user.is_active:
-            raise exceptions.AuthenticationFailed("User not found or inactive.")
+            raise exceptions.AuthenticationFailed(
+                "Invalid token user.") from error
+
+        session = getattr(request, "db", None)
+        if not session:
+            raise exceptions.AuthenticationFailed("Database session missing.")
+
+        user = session.get(User, user_id)
+        if user is None or getattr(user, "is_active", True) is False:
+            raise exceptions.AuthenticationFailed(
+                "User not found or inactive.")
+
+        if not hasattr(user, "is_authenticated"):
+            setattr(user, "is_authenticated", True)
+
         return user, payload

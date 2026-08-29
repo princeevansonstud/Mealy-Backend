@@ -14,8 +14,9 @@ class Meal(models.Model):
 
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2)  # Stores KSh cleanly
-    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='BEEF')
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    category = models.CharField(
+        max_length=20, choices=CATEGORY_CHOICES, default='BEEF')
     is_on_daily_menu = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -31,9 +32,12 @@ class Order(models.Model):
         ('cancelled', 'Cancelled'),
     ]
 
-    customer_name = models.CharField(max_length=255, blank=True, default='Guest')
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    customer_name = models.CharField(
+        max_length=255, blank=True, default='Guest')
+    total_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0.00)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
