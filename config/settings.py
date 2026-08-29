@@ -23,6 +23,9 @@ ALLOWED_HOSTS = []
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.staticfiles',
+    'rest_framework',
+    'corsheaders',
+    'meals',
 
     # Third-party apps
     'rest_framework',
@@ -43,6 +46,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+   
     'config.db.SQLAlchemySessionMiddleware',
 ]
 

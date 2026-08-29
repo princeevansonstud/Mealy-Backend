@@ -1,12 +1,21 @@
-from django.urls import path
-
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import MealViewSet, OrderViewSet
 from .views import (
-    DailyMenuItemCreateView,
+    MealOptionListCreateView,
     DailyMenuListCreateView,
     DailyMenuTodayView,
-    MealOptionListCreateView,
+    DailyMenuItemCreateView,
 )
 
+router = DefaultRouter()
+router.register(r'meals', MealViewSet, basename='meal')
+router.register(r'orders', OrderViewSet, basename='order')
+
+urlpatterns = [
+    path('', include(router.urls)),
+
+]
 
 urlpatterns = [
     path("options/", MealOptionListCreateView.as_view(), name="meal-options"),
