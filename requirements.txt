@@ -1,4 +1,5 @@
 gunicorn==26.2.0
 django
+djangorestframework
 psycopg2-binary
 dj-database-url
