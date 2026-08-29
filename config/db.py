@@ -4,24 +4,25 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db.sqlite3")
 engine = create_engine(DATABASE_URL, future=True)
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, expire_on_commit=False)
+SessionLocal = sessionmaker(
+    bind=engine, autocommit=False, autoflush=False, expire_on_commit=False)
+
+Base = declarative_base()
 
 
 def get_db():
     db = SessionLocal()
     try:
-        yield session
-        session.commit()
+        yield db
+        db.commit()
     except Exception:
-        session.rollback()
+        db.rollback()
         raise
     finally:
-        session.close()
+        db.close()
 
 
 class SQLAlchemySessionMiddleware:
-    """Attach one SQLAlchemy transaction to each HTTP request."""
-
     def __init__(self, get_response):
         self.get_response = get_response
 

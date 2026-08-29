@@ -1,68 +1,91 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from config.db import get_db
+
+from meals.models import DailyMenuItem, MealOption
 from .models import Order, OrderItem
+from .serializers import OrderSerializer, OrderCreateSerializer
 
 
 @api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
 def order_list_create(request):
-    db = get_db()
+    session = request.db  # Request-scoped SQLAlchemy session attached by middleware
+    authenticated_user_id = request.user.id
 
     if request.method == 'GET':
-        user_id = request.query_params.get('user_id')
-
-        query = db.query(Order)
-        if user_id:
-            query = query.filter(Order.user_id == user_id)
-
-        orders = query.order_by(Order.created_at.desc()).all()
-
-        data = []
-        for order in orders:
-            data.append({
-                "id": order.id,
-                "user_id": order.user_id,
-                "total_amount": order.total_amount,
-                "status": order.status,
-                "created_at": order.created_at.isoformat(),
-                "items": [
-                    {
-                        "id": item.id,
-                        "meal_title": item.meal_title,
-                        "quantity": item.quantity,
-                        "price": item.price
-                    } for item in order.items
-                ]
-            })
-        return Response(data, status=status.HTTP_200_OK)
+        # Restrict order history strictly to the authenticated user
+        orders = (
+            session.query(Order)
+            .filter(Order.user_id == authenticated_user_id)
+            .order_by(Order.created_at.desc())
+            .all()
+        )
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
-        user_id = request.data.get('user_id')
-        items_data = request.data.get('items', [])
-        total_amount = request.data.get('total_amount')
+        serializer = OrderCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        if not user_id or not items_data:
-            return Response({"error": "user_id and items are required"}, status=status.HTTP_400_BAD_REQUEST)
+        items_data = serializer.validated_data['items']
 
+        calculated_total = 0.0
+        validated_order_items = []
+
+        # Validate existence & calculate true server-side pricing
+        for item in items_data:
+            daily_item_id = item['daily_menu_item_id']
+            quantity = item['quantity']
+
+            daily_item = session.get(DailyMenuItem, daily_item_id)
+            if not daily_item:
+                return Response(
+                    {"error": f"Daily menu item {daily_item_id} does not exist."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            meal = session.get(MealOption, daily_item.meal_option_id)
+            if not meal:
+                return Response(
+                    {"error": f"Meal option for item {daily_item_id} not found."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            item_price = float(meal.price)
+            calculated_total += item_price * quantity
+
+            validated_order_items.append({
+                "meal_title": meal.title,
+                "quantity": quantity,
+                "price": item_price
+            })
+
+        # Create Order record with server-validated data
         new_order = Order(
-            user_id=user_id,
-            total_amount=total_amount,
+            user_id=authenticated_user_id,
+            total_amount=calculated_total,
             status="Pending"
         )
-        db.add(new_order)
-        db.flush()
+        session.add(new_order)
+        session.flush()  # Generates new_order.id
 
-        for item in items_data:
+        # Attach line items
+        for order_item_data in validated_order_items:
             order_item = OrderItem(
                 order_id=new_order.id,
-                meal_title=item.get('meal_title'),
-                quantity=item.get('quantity'),
-                price=item.get('price')
+                meal_title=order_item_data["meal_title"],
+                quantity=order_item_data["quantity"],
+                price=order_item_data["price"]
             )
-            db.add(order_item)
+            session.add(order_item)
 
-        db.commit()
-        db.refresh(new_order)
+        session.commit()
+        session.refresh(new_order)
 
-        return Response({"message": "Order created successfully", "order_id": new_order.id}, status=status.HTTP_201_CREATED)
+        return Response(
+            OrderSerializer(new_order).data,
+            status=status.HTTP_201_CREATED
+        )

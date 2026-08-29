@@ -5,16 +5,24 @@ from .models import DailyMenu, DailyMenuItem, MealOption
 
 class MealOptionSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
-    caterer_id = serializers.IntegerField()
+    caterer_id = serializers.IntegerField(read_only=True)
     title = serializers.CharField(max_length=100)
-    category = serializers.CharField(max_length=50, required=False, allow_null=True)
+    category = serializers.CharField(
+        max_length=50, required=False, allow_null=True)
     price = serializers.FloatField()
-    description = serializers.CharField(max_length=255, required=False, allow_null=True)
-    image_url = serializers.CharField(max_length=255, required=False, allow_null=True)
+    description = serializers.CharField(
+        max_length=255, required=False, allow_null=True)
+    image_url = serializers.CharField(
+        max_length=255, required=False, allow_null=True)
 
     def create(self, validated_data):
-        session = self.context["request"].db
-        meal = MealOption(**validated_data)
+        request = self.context["request"]
+        session = request.db
+
+        # Inject the authenticated caterer's ID automatically
+        caterer_id = getattr(request.user, "id", 1)
+        meal = MealOption(caterer_id=caterer_id, **validated_data)
+
         session.add(meal)
         session.flush()
         return meal
@@ -22,12 +30,17 @@ class MealOptionSerializer(serializers.Serializer):
 
 class DailyMenuSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
-    caterer_id = serializers.IntegerField()
+    caterer_id = serializers.IntegerField(read_only=True)
     menu_date = serializers.DateField()
 
     def create(self, validated_data):
-        session = self.context["request"].db
-        menu = DailyMenu(**validated_data)
+        request = self.context["request"]
+        session = request.db
+
+        # Inject the authenticated caterer's ID automatically
+        caterer_id = getattr(request.user, "id", 1)
+        menu = DailyMenu(caterer_id=caterer_id, **validated_data)
+
         session.add(menu)
         session.flush()
         return menu
