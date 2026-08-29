@@ -1,31 +1,84 @@
-from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey
-from config.db import Base
+from django.conf import settings
+from django.db import models
 
 
-class MealOption(Base):
-    __tablename__ = "meal_options"
+class Meal(models.Model):
+    CATEGORY_CHOICES = [
+        ('VEGAN', 'Vegan'),
+        ('BEEF', 'Beef'),
+        ('PORK', 'Pork'),
+        ('CHICKEN', 'Chicken'),
+        ('CHEESE', 'Cheese'),
+        ('GREENS', 'Greens'),
+    ]
 
-    id = Column(Integer, primary_key=True, index=True)
-    caterer_id = Column(Integer, ForeignKey("authentication_user.id"), nullable=False)
-    title = Column(String(100), nullable=False)
-    category = Column(String(50), nullable=True)
-    price = Column(Float, nullable=False)
-    description = Column(String(255), nullable=True)
-    image_url = Column(String(255), nullable=True)
+    name = models.CharField(max_length=150)
+    description = models.TextField(blank=True, null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)  # Stores KSh cleanly
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='BEEF')
+    is_on_daily_menu = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
 
 
-class DailyMenu(Base):
-    __tablename__ = "daily_menus"
+class Order(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('preparing', 'Preparing'),
+        ('delivered', 'Delivered'),
+        ('cancelled', 'Cancelled'),
+    ]
 
-    id = Column(Integer, primary_key=True, index=True)
-    caterer_id = Column(Integer, ForeignKey("authentication_user.id"), nullable=False)
-    menu_date = Column(Date, nullable=False)
+    customer_name = models.CharField(max_length=255, blank=True, default='Guest')
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Order #{self.id} - {self.customer_name} ({self.status})"
 
 
-class DailyMenuItem(Base):
-    __tablename__ = "daily_menu_items"
+class MealOption(models.Model):
+    caterer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='meal_options'
+    )
+    title = models.CharField(max_length=100)
+    category = models.CharField(max_length=50, blank=True, null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.CharField(max_length=255, blank=True, null=True)
+    image_url = models.CharField(max_length=255, blank=True, null=True)
 
-    id = Column(Integer, primary_key=True, index=True)
-    daily_menu_id = Column(Integer, ForeignKey("daily_menus.id"), nullable=False)
-    meal_option_id = Column(Integer, ForeignKey("meal_options.id"), nullable=False)
+    def __str__(self):
+        return self.title
 
+
+class DailyMenu(models.Model):
+    caterer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='daily_menus'
+    )
+    menu_date = models.DateField()
+
+    def __str__(self):
+        return f"Menu for {self.menu_date}"
+
+
+class DailyMenuItem(models.Model):
+    daily_menu = models.ForeignKey(
+        DailyMenu,
+        on_delete=models.CASCADE,
+        related_name='items'
+    )
+    meal_option = models.ForeignKey(
+        MealOption,
+        on_delete=models.CASCADE,
+        related_name='daily_menu_items'
+    )
+
+    def __str__(self):
+        return f"{self.meal_option.title} - {self.daily_menu.menu_date}"
