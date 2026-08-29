@@ -1,3 +1,30 @@
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from .models import Meal, Order
+from .serializer import MealSerializer, OrderSerializer
+
+class MealViewSet(viewsets.ModelViewSet):
+    queryset = Meal.objects.all().order_by('-created_at')
+    serializer_class = MealSerializer
+
+    @action(detail=False, methods=['get'])
+    def daily_menu(self, request):
+        daily_meals = Meal.objects.filter(is_on_daily_menu=True)
+        serializer = self.get_serializer(daily_meals, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['patch'])
+    def toggle_daily_menu(self, request, pk=None):
+        meal = self.get_object()
+        meal.is_on_daily_menu = not meal.is_on_daily_menu
+        meal.save()
+        return Response(self.get_serializer(meal).data, status=status.HTTP_200_OK)
+
+
+class OrderViewSet(viewsets.ModelViewSet):
+    queryset = Order.objects.all().order_by('-created_at')
+    serializer_class = OrderSerializer
 from datetime import date
 
 from rest_framework import status
