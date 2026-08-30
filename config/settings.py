@@ -8,7 +8,7 @@ SECRET_KEY = 'django-insecure-c@+*tz1r_d!uj(g6gzc8!fst#yy&p_brmgl!mq!qx+%!7qj*dt
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com', '*']
 
 INSTALLED_APPS = [
     'django.contrib.auth',
@@ -103,12 +103,7 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-]
+CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_CREDENTIALS = True
 
