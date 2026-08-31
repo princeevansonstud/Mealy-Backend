@@ -9,3 +9,4 @@ WTForms
 passlib
 sqlalchemy
 PyJWT
+requests==2.32.3
