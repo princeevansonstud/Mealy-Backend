@@ -47,10 +47,14 @@ class DailyMenuTodayView(APIView):
 
     def get(self, request):
         session = request.db
-        menu = session.query(DailyMenu).filter(DailyMenu.menu_date == date.today()).first()
+        menu = (
+            session.query(DailyMenu)
+            .order_by(DailyMenu.menu_date.desc(), DailyMenu.id.desc())
+            .first()
+        )
         if menu is None:
             return Response(
-                {"message": "No menu found for today."},
+                {"message": "No menu has been set yet."},
                 status=status.HTTP_404_NOT_FOUND,
             )
         serializer = DailyMenuWithItemsSerializer(menu, context={"request": request})
