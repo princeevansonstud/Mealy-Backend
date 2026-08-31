@@ -8,3 +8,4 @@ marshmallow
 WTForms
 passlib
 sqlalchemy
+PyJWT
