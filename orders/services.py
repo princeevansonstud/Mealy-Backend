@@ -11,6 +11,8 @@ def get_mpesa_access_token():
         auth=(settings.MPESA_CONSUMER_KEY, settings.MPESA_CONSUMER_SECRET),
         timeout=10,
     )
+    print(f"MPESA OAuth status: {response.status_code}")
+    print(f"MPESA OAuth response: {response.text}")
     response.raise_for_status()
     return response.json().get("access_token")
 
@@ -45,6 +47,12 @@ def initiate_stk_push(phone_number: str, amount: float, order_id: str):
         "TransactionDesc": f"Payment for Order #{order_id}",
     }
 
+    print(f"MPESA STK push payload: {payload}")
+
     url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
     response = requests.post(url, json=payload, headers=headers, timeout=15)
+
+    print(f"MPESA STK push status: {response.status_code}")
+    print(f"MPESA STK push response: {response.text}")
+
     return response.json()

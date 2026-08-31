@@ -82,14 +82,17 @@ def order_list_create(request):
                     mpesa_res = initiate_stk_push(
                         phone_number, int(final_amount), new_order.id
                     )
+                    print("M-Pesa response:", mpesa_res)
+
                     if mpesa_res.get("ResponseCode") == "0":
-                        if hasattr(new_order, 'checkout_request_id'):
-                            new_order.checkout_request_id = mpesa_res.get(
-                                "CheckoutRequestID")
+                        new_order.checkout_request_id = mpesa_res.get(
+                            "CheckoutRequestID")
                         new_order.status = "Pending Payment"
                         session.commit()
+                    else:
+                        print("M-Pesa STK push was not accepted:", mpesa_res)
                 except Exception as mpesa_err:
-                    print("M-Pesa execution warning:", mpesa_err)
+                    print("M-Pesa execution error:", mpesa_err)
 
             return Response(OrderSerializer(new_order, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
@@ -129,18 +132,21 @@ def mpesa_callback(request):
     result_code = stk_callback.get("ResultCode")
     checkout_request_id = stk_callback.get("CheckoutRequestID")
 
+    print("M-Pesa callback received:", request.data)
+
     session = request.db
 
-    order = None
-    if hasattr(Order, 'checkout_request_id'):
-        order = (
-            session.query(Order)
-            .filter(Order.checkout_request_id == checkout_request_id)
-            .first()
-        )
+    order = (
+        session.query(Order)
+        .filter(Order.checkout_request_id == checkout_request_id)
+        .first()
+    )
 
     if order:
         order.status = "Paid" if result_code == 0 else "Payment Failed"
         session.commit()
+    else:
+        print("No matching order found for checkout_request_id:",
+              checkout_request_id)
 
     return Response({"ResultCode": 0, "ResultDesc": "Accepted"}, status=status.HTTP_200_OK)
