@@ -10,4 +10,4 @@ passlib
 sqlalchemy
 PyJWT
 requests==2.32.3
-bcrypt
+bcrypt==3.2.2
