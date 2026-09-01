@@ -70,10 +70,7 @@ class AuthenticationTests(SimpleTestCase):
 
         return response
 
-    # ---------------------------------------------------------
-    # Registration tests
-    # ---------------------------------------------------------
-
+   
     def test_user_can_register(self):
         response = self.client.post(
             self.register_url,
@@ -171,10 +168,6 @@ class AuthenticationTests(SimpleTestCase):
             status.HTTP_400_BAD_REQUEST,
         )
 
-    # ---------------------------------------------------------
-    # Login tests
-    # ---------------------------------------------------------
-
     def test_user_can_login(self):
         self.client.post(
             self.register_url,
@@ -210,9 +203,6 @@ class AuthenticationTests(SimpleTestCase):
             status.HTTP_400_BAD_REQUEST,
         )
 
-    # ---------------------------------------------------------
-    # /me/ tests
-    # ---------------------------------------------------------
 
     def test_me_requires_authentication(self):
         response = self.client.get(self.me_url)
@@ -250,10 +240,6 @@ class AuthenticationTests(SimpleTestCase):
             "customer",
         )
 
-    # ---------------------------------------------------------
-    # Role tests
-    # ---------------------------------------------------------
-
     def test_customer_has_customer_role(self):
         user = self.create_user()
 
@@ -278,10 +264,7 @@ class AuthenticationTests(SimpleTestCase):
             "caterer",
         )
 
-    # ---------------------------------------------------------
-    # Logout tests
-    # ---------------------------------------------------------
-
+    
     def test_refresh_token_returns_a_new_access_token(self):
         self.create_user()
 

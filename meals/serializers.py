@@ -30,7 +30,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class MealOptionSerializer(serializers.ModelSerializer):
-    # Field mappings to support frontend sending 'name' instead of 'title'
+    
     name = serializers.CharField(write_only=True, required=False)
     caterer_id = serializers.IntegerField(read_only=True)
 
@@ -54,13 +54,13 @@ class MealOptionSerializer(serializers.ModelSerializer):
         }
 
     def validate(self, attrs):
-        # Map 'name' to 'title' if present in incoming JSON payload
+      
         if 'name' in attrs and 'title' not in attrs:
             attrs['title'] = attrs.pop('name')
         return attrs
 
     def create(self, validated_data):
-        # Fallback to user ID 1 if request user is unauthenticated during local tests
+
         request = self.context.get('request')
         user = getattr(request, 'user', None) if request else None
         caterer_id = user.id if user and user.is_authenticated else 1
